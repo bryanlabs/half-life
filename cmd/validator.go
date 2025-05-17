@@ -347,35 +347,63 @@ func (stats *ValidatorStats) determineAggregatedErrorsAndAlertLevel(vm *Validato
 	}
 
 	if !vm.FullNode {
-		if stats.Height == stats.LastSignedBlockHeight {
-			if stats.RecentMissedBlocks == 0 {
-				if stats.SlashingPeriodUptime > vm.SlashingPeriodUptimeWarningThreshold {
-					// no recent missed blocks and above warning threshold for slashing period uptime, all good
-					return
-				}
-				// Warning for recovering from downtime. Not error because we are currently signing
-				stats.increaseAlertLevel(alertLevelWarning)
+		// Missed blocks alert color logic: use config thresholds, not hardcoded values
+		var missedBlocksGreenTo int64 = 49
+		var missedBlocksYellowFrom int64 = 50
+		var missedBlocksYellowTo int64 = 99
+		var missedBlocksRedFrom int64 = 100
+		if vm.MissedBlocksGreenTo != nil {
+			missedBlocksGreenTo = *vm.MissedBlocksGreenTo
+		}
+		if vm.MissedBlocksYellowFrom != nil {
+			missedBlocksYellowFrom = *vm.MissedBlocksYellowFrom
+		}
+		if vm.MissedBlocksYellowTo != nil {
+			missedBlocksYellowTo = *vm.MissedBlocksYellowTo
+		}
+		if vm.MissedBlocksRedFrom != nil {
+			missedBlocksRedFrom = *vm.MissedBlocksRedFrom
+		}
+		if stats.RecentMissedBlocks <= missedBlocksGreenTo {
+			stats.RecentMissedBlockAlertLevel = alertLevelNone
+		} else if stats.RecentMissedBlocks >= missedBlocksRedFrom {
+			stats.RecentMissedBlockAlertLevel = alertLevelHigh
+			stats.increaseAlertLevel(alertLevelHigh)
+		} else if stats.RecentMissedBlocks >= missedBlocksYellowFrom && stats.RecentMissedBlocks <= missedBlocksYellowTo {
+			stats.RecentMissedBlockAlertLevel = alertLevelWarning
+			stats.increaseAlertLevel(alertLevelWarning)
+		}
+		return
+	}
+
+	if stats.Height == stats.LastSignedBlockHeight {
+		if stats.RecentMissedBlocks == 0 {
+			if stats.SlashingPeriodUptime > vm.SlashingPeriodUptimeWarningThreshold {
+				// no recent missed blocks and above warning threshold for slashing period uptime, all good
 				return
 			}
-			// Warning for missing recent blocks, but have signed current block
+			// Warning for recovering from downtime. Not error because we are currently signing
 			stats.increaseAlertLevel(alertLevelWarning)
 			return
 		}
+		// Warning for missing recent blocks, but have signed current block
+		stats.increaseAlertLevel(alertLevelWarning)
+		return
+	}
 
-		// past this, we have not signed the most recent block
+	// past this, we have not signed the most recent block
 
-		if stats.RecentMissedBlocks < vm.RecentBlocksToCheck {
-			// we have missed some, but not all, of the recent blocks to check
-			if stats.SlashingPeriodUptime > vm.SlashingPeriodUptimeErrorThreshold {
-				stats.increaseAlertLevel(alertLevelWarning)
-			} else {
-				// we are below slashing period uptime error threshold
-				stats.increaseAlertLevel(alertLevelHigh)
-			}
+	if stats.RecentMissedBlocks < vm.RecentBlocksToCheck {
+		// we have missed some, but not all, of the recent blocks to check
+		if stats.SlashingPeriodUptime > vm.SlashingPeriodUptimeErrorThreshold {
+			stats.increaseAlertLevel(alertLevelWarning)
 		} else {
-			// Error, missed all of the recent blocks to check
+			// we are below slashing period uptime error threshold
 			stats.increaseAlertLevel(alertLevelHigh)
 		}
+	} else {
+		// Error, missed all of the recent blocks to check
+		stats.increaseAlertLevel(alertLevelHigh)
 	}
 	return
 }

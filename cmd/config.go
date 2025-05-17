@@ -168,6 +168,22 @@ func (c *HalfLifeConfig) getUnsetDefaults() {
 		if c.Validators[idx].RecentMissedBlocksNotifyThreshold == 0 {
 			c.Validators[idx].RecentMissedBlocksNotifyThreshold = defaultRecentMissedBlocksNotifyThreshold
 		}
+		if c.Validators[idx].MissedBlocksGreenTo == nil {
+			defaultVal := int64(49)
+			c.Validators[idx].MissedBlocksGreenTo = &defaultVal
+		}
+		if c.Validators[idx].MissedBlocksYellowFrom == nil {
+			defaultVal := int64(50)
+			c.Validators[idx].MissedBlocksYellowFrom = &defaultVal
+		}
+		if c.Validators[idx].MissedBlocksYellowTo == nil {
+			defaultVal := int64(99)
+			c.Validators[idx].MissedBlocksYellowTo = &defaultVal
+		}
+		if c.Validators[idx].MissedBlocksRedFrom == nil {
+			defaultVal := int64(100)
+			c.Validators[idx].MissedBlocksRedFrom = &defaultVal
+		}
 	}
 }
 
@@ -205,6 +221,11 @@ type ValidatorMonitor struct {
 	RecentBlocksToCheck                  int64   `yaml:"recent_blocks_to_check"`
 	NotifyEvery                          int64   `yaml:"notify_every"`
 	RecentMissedBlocksNotifyThreshold    int64   `yaml:"recent_missed_blocks_notify_threshold"`
+
+	MissedBlocksGreenTo    *int64 `yaml:"missed-blocks-green-to"`
+	MissedBlocksYellowFrom *int64 `yaml:"missed-blocks-yellow-from"`
+	MissedBlocksYellowTo   *int64 `yaml:"missed-blocks-yellow-to"`
+	MissedBlocksRedFrom    *int64 `yaml:"missed-blocks-red-from"`
 }
 
 func saveConfig(configFile string, config *HalfLifeConfig, writeConfigMutex *sync.Mutex) {
