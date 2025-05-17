@@ -317,8 +317,14 @@ func (stats *ValidatorStats) increaseAlertLevel(alertLevel AlertLevel) {
 func (stats *ValidatorStats) determineAggregatedErrorsAndAlertLevel(vm *ValidatorMonitor) (errs []error) {
 	sentryErrorCount := 0
 	for _, sentryStat := range stats.SentryStats {
+		var threshold int64
+		if vm.SentryOutOfSyncBlocksThreshold != nil {
+			threshold = *vm.SentryOutOfSyncBlocksThreshold
+		} else {
+			threshold = outOfSyncThreshold
+		}
 		if sentryStat.SentryAlertType != sentryAlertTypeGRPCError {
-			if stats.Height-sentryStat.Height > outOfSyncThreshold {
+			if stats.Height-sentryStat.Height > threshold {
 				errs = append(errs, newSentryOutOfSyncError(sentryStat.Name, fmt.Sprintf("Height: %d not in sync with RPC Height: %d", sentryStat.Height, stats.Height)))
 				sentryStat.SentryAlertType = sentryAlertTypeOutOfSyncError
 			}
@@ -328,7 +334,7 @@ func (stats *ValidatorStats) determineAggregatedErrorsAndAlertLevel(vm *Validato
 			stats.increaseAlertLevel(alertLevelWarning)
 			sentryErrorCount++
 		}
-		if stats.Height < sentryStat.Height-outOfSyncThreshold {
+		if stats.Height < sentryStat.Height-threshold {
 			// RPC server is behind sentries
 			stats.RPCError = true
 			stats.increaseAlertLevel(alertLevelWarning)
